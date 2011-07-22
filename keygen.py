@@ -152,7 +152,7 @@ class FLEXKeygen(object):
       d, m, y = today.day, today.month, today.year
     if y >= 1900: y -= 1900
     i = (y << 9) + d + 32 * m
-    return "{:X}".format(i)
+    return "{0:X}".format(i)
 
   @staticmethod
   def get_ver(version):
@@ -222,7 +222,7 @@ class FLEXKeygen(object):
 
   @staticmethod
   def atox(y, seclen):
-      hex_string = ''.join("{:02X}".format(b) for b in y)
+      hex_string = ''.join("{0:02X}".format(b) for b in y)
       hex_string += '0' * (16 - len(hex_string))
       if seclen == FLEXKeygen.SECLEN_SHORT:
           return hex_string[0:12]
