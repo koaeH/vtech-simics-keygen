@@ -24,13 +24,14 @@
 #
 # --
 
-import io
+import os
 import sys
 import time
 import struct
 import getpass
 import optparse
 import datetime
+import StringIO
 
 VIRTUTECH_SIMICS_FEATURE_SET = [
   { 'name': 'eclipse',               'version': '3.0', 'vendor': 'vtech', 'string': None         },
@@ -152,7 +153,7 @@ class FLEXKeygen(object):
       d, m, y = today.day, today.month, today.year
     if y >= 1900: y -= 1900
     i = (y << 9) + d + 32 * m
-    return "{0:X}".format(i)
+    return "%X" % i
 
   @staticmethod
   def get_ver(version):
@@ -222,7 +223,7 @@ class FLEXKeygen(object):
 
   @staticmethod
   def atox(y, seclen):
-      hex_string = ''.join("{0:02X}".format(b) for b in y)
+      hex_string = ''.join("%02X" % b for b in y)
       hex_string += '0' * (16 - len(hex_string))
       if seclen == FLEXKeygen.SECLEN_SHORT:
           return hex_string[0:12]
@@ -296,7 +297,7 @@ class FLEXKeygen(object):
 
 class VendorCode(object):
   def __init__(self, dump):
-    s = io.BytesIO(dump) # reads vc-data as an iostream
+    s = StringIO.StringIO(dump) # reads vc-data as an iostream
     self.type = list(struct.unpack(   '<I', s.read(4 * 1)))[0]
     self.data = list(struct.unpack(  '<II', s.read(4 * 2)))
     self.keys = list(struct.unpack('<IIII', s.read(4 * 4)))
@@ -309,7 +310,7 @@ class FeatureConfig(object):
     self.string     = feature_data['string']
     self.version    = feature_data['version']
     self.date_until = FLEXKeygen.PERMANENT_DATE
-    self.sign = bytearray() # EQU "SIGN=AAABBBCCC..."
+    self.sign = str() # EQU "SIGN=AAABBBCCC..."
 
   def save(self, out_file):
     out_file.write("FEATURE %(name)s %(vendor)s %(version)s permanent uncounted " %
@@ -319,7 +320,7 @@ class FeatureConfig(object):
     out_file.write("\r\n") # better to use DOS/Windows CRLF ending
 
 if __name__ == "__main__":
-  parser = optparse.OptionParser(usage="%prog [--file FILE] [--user USER]", epilog="--")
+  parser = optparse.OptionParser(usage="%prog [--file FILE] [--user USER]")
   parser.add_option('-u', '--user', metavar="USER", dest="username", help="username that will run SIMICS")
   parser.add_option('-w', '--file', metavar="FILE", help="destination file (license.lic)", default="license.lic")
 
@@ -331,11 +332,12 @@ if __name__ == "__main__":
       if not opts.username.strip():
         opts.username = host_username
     except KeyboardInterrupt:
-      sys.stdout.write("\n")
+      print os.linesep
       sys.exit(0)
 
   try:
-    with open(opts.file, 'w') as out_file:
+    out_file = open(opts.file, 'w')
+    try:
       for FEATURE in VIRTUTECH_SIMICS_FEATURE_SET:
         vc = VendorCode(VIRTUTECH_VENDORCODE_DUMP)
         conf = FeatureConfig(feature_data=FEATURE)
@@ -349,13 +351,15 @@ if __name__ == "__main__":
 
         keygen.do(conf, vc)
         conf.save(out_file)
+    finally:
+      out_file.close()
   except IOError:
     sys.stderr.write("error: couldn't write ")
     sys.stderr.write("'%s'" % opts.file)
-    sys.stderr.write("\n")
+    sys.stderr.write(os.linesep)
     sys.exit(2)
 
   sys.stdout.write("license written to ")
   sys.stdout.write("'%s'" % opts.file)
-  sys.stdout.write("\n")
+  sys.stdout.write(os.linesep)
 
